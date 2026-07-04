@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PixelCoder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-deep: #0a1518;
+  --bg-panel: #102126;
+  --bg-panel-alt: #142b31;
+  --line: #24444d;
+  --line-soft: #1a343b;
+  --text-primary: #e8f1f0;
+  --text-muted: #8fa8ac;
+  --mint: #4fd1c5;
+  --mint-dim: #2f7f78;
+  --copper: #c98a4b;
+  --amber: #f2c14e;
+  --red: #e2574c;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+button { font-family: inherit; }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; border-bottom: 1px solid var(--line);
+  background: rgba(16,33,38,0.85);
+}
+.app-header__title { display: flex; align-items: center; gap: 10px; }
+.app-header__mark { width: 14px; height: 14px; border-radius: 3px; background: var(--mint); box-shadow: 0 0 12px var(--mint); }
+.app-header__title h1 { font-family: var(--font-display); font-size: 20px; margin: 0; letter-spacing: 0.02em; }
+.app-header__tag { color: var(--text-muted); font-size: 13px; border-left: 1px solid var(--line); padding-left: 10px; }
+.app-header__meta { display: flex; align-items: center; gap: 14px; }
+.badge-count { font-family: var(--font-mono); font-size: 13px; color: var(--amber); }
+
+.app-body {
+  flex: 1; display: grid;
+  grid-template-columns: 230px minmax(300px, 1fr) minmax(340px, 1fr);
+  gap: 1px; background: var(--line); min-height: 0;
+}
+.app-body > * { background: var(--bg-deep); }
+
+.level-sidebar { padding: 18px 14px; overflow-y: auto; }
+.level-sidebar__brand { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding-left: 2px; }
+.level-sidebar__brand-mark { width: 10px; height: 10px; background: var(--copper); border-radius: 50%; box-shadow: 0 0 10px var(--copper); }
+.level-sidebar__brand-name { font-family: var(--font-display); font-size: 14px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.level-group { margin-bottom: 18px; }
+.level-group__title { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); margin: 0 0 8px 6px; }
+.level-group__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.level-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--text-primary); cursor: pointer; font-size: 13px; text-align: left; }
+.level-item:hover:not(:disabled) { background: var(--bg-panel); }
+.level-item--active { background: var(--bg-panel-alt); border-color: var(--mint-dim); }
+.level-item--locked { color: var(--text-muted); cursor: not-allowed; }
+.level-item__index { font-family: var(--font-mono); color: var(--text-muted); width: 16px; flex-shrink: 0; }
+.level-item__title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.level-item__lock { font-size: 11px; opacity: 0.6; }
+.star-row { display: inline-flex; gap: 1px; font-size: 12px; flex-shrink: 0; }
+.star { color: var(--line); }
+.star--filled { color: var(--amber); }
+
+.editor-pane { display: flex; flex-direction: column; min-height: 0; }
+.code-editor { flex: 1; display: flex; min-height: 0; font-family: var(--font-mono); font-size: 14px; line-height: 1.6; position: relative; }
+.code-editor__gutter { padding: 16px 10px 16px 16px; color: var(--text-muted); text-align: right; user-select: none; overflow: hidden; background: var(--bg-panel); }
+.code-editor__line-number { height: 22.4px; }
+.code-editor__body { position: relative; flex: 1; min-width: 0; }
+.code-editor__highlight, .code-editor__input {
+  position: absolute; inset: 0; margin: 0; padding: 16px; white-space: pre-wrap; word-break: break-word;
+  overflow: auto; font-family: var(--font-mono); font-size: 14px; line-height: 1.6; tab-size: 2; border: none;
+}
+.code-editor__highlight { color: var(--text-primary); background: var(--bg-panel-alt); pointer-events: none; }
+.code-editor__highlight code { font-family: inherit; }
+.code-editor__input { background: transparent; color: transparent; caret-color: var(--mint); resize: none; outline: none; }
+.tok-keyword { color: var(--copper); }
+.tok-string { color: var(--amber); }
+.tok-number { color: #a3d9c9; }
+.tok-comment { color: var(--text-muted); font-style: italic; }
+.tok-command { color: var(--mint); }
+
+.game-pane { display: flex; flex-direction: column; min-height: 0; }
+.game-canvas { flex: 1; min-height: 240px; background: var(--bg-deep); }
+.game-canvas canvas { display: block; width: 100%; height: 100%; }
+.run-panel { padding: 16px 18px 20px; border-top: 1px solid var(--line); background: var(--bg-panel); overflow-y: auto; }
+.run-panel__intro h2 { font-family: var(--font-display); font-size: 17px; margin: 0 0 6px; }
+.run-panel__intro p { margin: 0 0 12px; color: var(--text-muted); font-size: 13.5px; line-height: 1.5; }
+.run-panel__commands { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 14px; }
+.run-panel__commands-label { font-size: 12px; color: var(--text-muted); margin-right: 2px; }
+.command-chip { font-family: var(--font-mono); font-size: 12px; background: var(--bg-panel-alt); border: 1px solid var(--line); color: var(--mint); padding: 3px 7px; border-radius: 5px; }
+.run-panel__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.btn { font-weight: 600; font-size: 13.5px; padding: 9px 16px; border-radius: 7px; border: 1px solid transparent; cursor: pointer; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: var(--mint); color: #06201d; }
+.btn--primary:hover:not(:disabled) { background: #6be0d5; }
+.btn--ghost { background: transparent; border-color: var(--line); color: var(--text-primary); }
+.btn--ghost:hover:not(:disabled) { border-color: var(--mint-dim); }
+.btn--small { padding: 6px 12px; font-size: 12.5px; }
+.hint-box { background: var(--bg-panel-alt); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.hint-box p { margin: 0 0 6px; font-size: 13px; color: var(--text-muted); font-family: var(--font-mono); }
+.hint-box p:last-child { margin-bottom: 0; color: var(--text-primary); }
+.status-box { border-radius: 8px; padding: 10px 12px; font-size: 13.5px; border: 1px solid; }
+.status-box p { margin: 0; }
+.status-box--success { background: rgba(79,209,197,0.1); border-color: var(--mint-dim); color: var(--mint); }
+.status-box--error { background: rgba(226,87,76,0.1); border-color: var(--red); color: #f4a8a1; }
+.status-box__stars { display: inline-flex; margin-top: 6px; font-size: 15px; }
+
+.badge-toast {
+  position: fixed; bottom: 24px; right: 24px; background: var(--bg-panel-alt); border: 1px solid var(--amber);
+  box-shadow: 0 0 24px rgba(242,193,78,0.25); border-radius: 10px; padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 4px; max-width: 280px; animation: toast-in 0.3s ease-out;
+}
+.badge-toast strong { color: var(--amber); font-family: var(--font-display); font-size: 14px; }
+.badge-toast span { font-size: 12.5px; color: var(--text-muted); }
+@keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+@media (max-width: 980px) {
+  .app-body { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .level-sidebar { max-height: 200px; }
+  .editor-pane { min-height: 300px; }
+  .game-canvas { min-height: 300px; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <div class="app-header__title">
+      <span class="app-header__mark"></span>
+      <h1>PixelCoder</h1>
+      <span class="app-header__tag">learn to code by moving a bot</span>
+    </div>
+    <div class="app-header__meta">
+      <span class="badge-count" id="badgeCount">0/4 badges</span>
+      <button type="button" class="btn btn--ghost btn--small" id="resetProgressBtn">Reset progress</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav class="level-sidebar" id="levelSidebar"></nav>
+    <main class="editor-pane">
+      <div class="code-editor">
+        <div class="code-editor__gutter" id="gutter"></div>
+        <div class="code-editor__body">
+          <pre class="code-editor__highlight" id="highlightLayer" aria-hidden="true"><code></code></pre>
+          <textarea class="code-editor__input" id="codeInput" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+        </div>
+      </div>
+    </main>
+    <aside class="game-pane">
+      <div class="game-canvas" id="gameCanvas"></div>
+      <div class="run-panel" id="runPanel"></div>
+    </aside>
+  </div>
+
+  <div id="badgeToast" style="display:none;" class="badge-toast">
+    <strong id="badgeToastTitle"></strong>
+    <span id="badgeToastDesc"></span>
+  </div>
+</div>
+
+<script>
+// ============================== LEVEL DATA ==============================
+// Same 12 levels as the real project, verified solvable with BFS + a
+// simulation of this exact rule set before being wired up here.
+const G = (rows) => rows.map((row) => row.split(''));
+const CONCEPTS = { SEQUENCE: 'sequence', LOOPS: 'loops', CONDITIONALS: 'conditionals', FUNCTIONS: 'functions' };
+
+const levels = [
+  { id: 1, concept: CONCEPTS.SEQUENCE, title: 'First Steps',
+    intro: 'Move the bot from S to G using moveRight() and moveDown(). Every line runs top to bottom, in order.',
+    grid: G(['S..','...','..G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 4,
+    hints: ['You need to move right twice and down twice.','Try: moveRight(); moveRight(); moveDown(); moveDown();'],
+    starterCode: '// write your code below\nmoveRight();\n' },
+  { id: 2, concept: CONCEPTS.SEQUENCE, title: 'Around the Wall',
+    intro: 'A wall blocks the straight line. Walk around it, one command per step.',
+    grid: G(['S..','.#.','..G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 4,
+    hints: ['Going straight down runs into the wall.','Go right first, then down twice, then... check the grid again.'],
+    starterCode: '// the wall is in the middle - go around it\n' },
+  { id: 3, concept: CONCEPTS.SEQUENCE, title: 'Coin Detour',
+    intro: 'Collect the coin on your way to the goal with collectCoin(). You must be standing on it first.',
+    grid: G(['S...','.#C.','....','...G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp','collectCoin'], parCommands: 7,
+    hints: ['Move onto the C tile before calling collectCoin().','Order: right, right, down, collectCoin(), down, down, right.'],
+    starterCode: '// grab the coin, then reach G\n' },
+  { id: 4, concept: CONCEPTS.LOOPS, title: 'A Long Hallway',
+    intro: 'Writing moveRight() five times works, but a for loop says the same thing in three lines.',
+    grid: G(['S.....G']),
+    availableCommands: ['moveRight','moveLeft','moveUp','moveDown'], parCommands: 6,
+    hints: ['for (let i = 0; i < 6; i++) { moveRight(); }','The loop body runs once per lap - six laps, six moves.'],
+    starterCode: 'for (let i = 0; i < 1; i++) {\n  moveRight();\n}\n' },
+  { id: 5, concept: CONCEPTS.LOOPS, title: 'Two Straights',
+    intro: 'Two separate loops: one to go right, one to go down.',
+    grid: G(['S....','....#','....#','....#','....G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 8,
+    hints: ['The right-hand column is blocked - go down the left side first.','First loop moves down 4 times, second loop moves right 4 times.'],
+    starterCode: '' },
+  { id: 6, concept: CONCEPTS.LOOPS, title: 'Staircase',
+    intro: 'Nest the pattern: right, down, right, down. A loop can hold more than one command.',
+    grid: G(['S.###','#..##','##..#','###..','####G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 8,
+    hints: ['The only open floor zig-zags - right, down, right, down, all the way.','for (let i = 0; i < 4; i++) { moveRight(); moveDown(); }'],
+    starterCode: '' },
+  { id: 7, concept: CONCEPTS.CONDITIONALS, title: 'Is the Path Clear?',
+    intro: 'Use pathClear("right") to check before you step. It returns true or false without moving.',
+    grid: G(['S.#..','....G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp','pathClear'], parCommands: 5,
+    hints: ['Take one step right, then check pathClear("right") before your next move.','moveRight(); if (pathClear("right")) { moveRight(); } else { moveDown(); } then finish with moveRight() three times.'],
+    starterCode: 'moveRight();\nif (pathClear("right")) {\n  moveRight();\n} else {\n  moveDown();\n}\n// now get yourself the rest of the way to G\n' },
+  { id: 8, concept: CONCEPTS.CONDITIONALS, title: 'Choose a Direction',
+    intro: 'Combine a loop with a condition so the bot decides its own route around each wall it meets.',
+    grid: G(['S.#..','..#..','....G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp','pathClear','atGoal'], parCommands: 7,
+    hints: ['while (!atGoal()) { if (pathClear("right")) { moveRight(); } else { moveDown(); } }','atGoal() tells you when to stop the loop.'],
+    starterCode: 'while (!atGoal()) {\n  if (pathClear("right")) {\n    moveRight();\n  } else {\n    moveDown();\n  }\n}\n' },
+  { id: 9, concept: CONCEPTS.CONDITIONALS, title: 'Coin or No Coin',
+    intro: 'Only collect the coin if one is actually there. hasCoinHere() checks the current tile.',
+    grid: G(['S.C..','.....','..C.G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp','collectCoin','hasCoinHere'], parCommands: 8,
+    hints: ['After every move, check: if (hasCoinHere()) { collectCoin(); }','Walk the whole path and test each tile as you land on it.'],
+    starterCode: '' },
+  { id: 10, concept: CONCEPTS.FUNCTIONS, title: 'Name Your Moves',
+    intro: 'Wrap a repeated pattern in your own function so you can call it by name.',
+    grid: G(['S....','.....','....G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 6,
+    hints: ['function goRightTwice() { moveRight(); moveRight(); }','Define the function once, then call it as many times as you need.'],
+    starterCode: 'function goRightTwice() {\n  moveRight();\n  moveRight();\n}\n\ngoRightTwice();\n' },
+  { id: 11, concept: CONCEPTS.FUNCTIONS, title: 'The L Shape',
+    intro: 'Write one function that performs the whole L-shaped turn, then reuse it.',
+    grid: G(['S..#..','...#..','...#..','......','#....G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp'], parCommands: 9,
+    hints: ['function lTurn() { moveDown(); moveDown(); moveDown(); moveRight(); }','Call lTurn() once, then moveRight() four more times and moveDown() once to finish.'],
+    starterCode: '' },
+  { id: 12, concept: CONCEPTS.FUNCTIONS, title: 'Full Route',
+    intro: 'Put it all together: functions, loops and a condition to reach the goal and grab every coin.',
+    grid: G(['S..#....','.C.#.C..','...#....','........','#..#...G']),
+    availableCommands: ['moveRight','moveDown','moveLeft','moveUp','pathClear','atGoal','hasCoinHere','collectCoin'], parCommands: 13,
+    hints: ['Build a small step() function that moves and then checks hasCoinHere().','Loop step() with pathClear() checks until atGoal() is true.'],
+    starterCode: '' },
+];
+
+const getLevelById = (id) => levels.find((l) => l.id === id);
+const totalLevels = levels.length;
+
+const CONCEPT_LABELS = { sequence: 'Sequence', loops: 'Loops', conditionals: 'Conditionals', functions: 'Functions' };
+const BADGES = [
+  { id: 'sequence', label: 'First Sequence', description: 'Finished every Sequence level.' },
+  { id: 'loops', label: 'Loop Master', description: 'Finished every Loops level.' },
+  { id: 'conditionals', label: 'Decision Maker', description: 'Finished every Conditionals level.' },
+  { id: 'functions', label: 'Function Architect', description: 'Finished every Functions level.' },
+];
+
+function starsForRun(commandsUsed, parCommands) {
+  if (commandsUsed <= parCommands) return 3;
+  if (commandsUsed <= parCommands * 1.5) return 2;
+  return 1;
+}
+
+// ============================== PROGRESS (localStorage) ==============================
+const STORAGE_KEY = 'pixelcoder.demo.progress.v1';
+function defaultProgress() {
+  return { unlockedLevel: 1, stars: {}, codeByLevel: {}, badges: [] };
+}
+function loadProgress() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultProgress();
+    return { ...defaultProgress(), ...JSON.parse(raw) };
+  } catch (e) { return defaultProgress(); }
+}
+function saveProgress(p) {
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch (e) {}
+}
+function resetProgressStorage() {
+  try { window.localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  return defaultProgress();
+}
+function conceptComplete(progress, concept) {
+  return levels.filter((l) => l.concept === concept).every((l) => (progress.stars[l.id] || 0) > 0);
+}
+
+// ============================== SANDBOXED RUNNER (Web Worker) ==============================
+// Same design as the real app: player code runs in a worker with a step
+// limit AND a main-thread timeout, so an infinite loop can't lock the tab.
+const WORKER_SOURCE = `
+const MAX_STEPS = 800;
+const DIRECTIONS = { right: [0,1], left: [0,-1], up: [-1,0], down: [1,0] };
+class RunnerError extends Error {}
+
+function buildBoard(grid) {
+  const rows = grid.length, cols = grid[0].length;
+  let start = null, goal = null;
+  const coins = new Set();
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const cell = grid[r][c];
+    if (cell === 'S') start = [r, c];
+    if (cell === 'G') goal = [r, c];
+    if (cell === 'C') coins.add(r + ',' + c);
+  }
+  return { rows, cols, start, goal, coins };
+}
+function isWall(grid, rows, cols, r, c) {
+  if (r < 0 || c < 0 || r >= rows || c >= cols) return true;
+  return grid[r][c] === '#';
+}
+function runLevel(code, grid, availableCommands) {
+  const { rows, cols, start, goal, coins } = buildBoard(grid);
+  const remainingCoins = new Set(coins);
+  const totalCoins = coins.size;
+  let pos = [...start];
+  let stepCount = 0, commandsUsed = 0;
+  const trace = [];
+  const guard = () => { stepCount++; if (stepCount > MAX_STEPS) throw new RunnerError('Your code ran for more than ' + MAX_STEPS + ' steps. Check for a loop that never ends.'); };
+  const move = (dir) => {
+    guard(); commandsUsed++;
+    const [dr, dc] = DIRECTIONS[dir];
+    const target = [pos[0] + dr, pos[1] + dc];
+    const blocked = isWall(grid, rows, cols, target[0], target[1]);
+    if (blocked) { trace.push({ type: 'bump', dir, at: [...pos] }); }
+    else { pos = target; trace.push({ type: 'move', dir, at: [...pos] }); }
+    return !blocked;
+  };
+  const pathClear = (dir) => {
+    guard();
+    if (!DIRECTIONS[dir]) throw new RunnerError('pathClear() needs "up", "down", "left" or "right" - got "' + dir + '".');
+    const [dr, dc] = DIRECTIONS[dir];
+    return !isWall(grid, rows, cols, pos[0] + dr, pos[1] + dc);
+  };
+  const atGoal = () => { guard(); return pos[0] === goal[0] && pos[1] === goal[1]; };
+  const hasCoinHere = () => { guard(); return remainingCoins.has(pos[0] + ',' + pos[1]); };
+  const collectCoin = () => {
+    guard();
+    const key = pos[0] + ',' + pos[1];
+    if (remainingCoins.has(key)) { remainingCoins.delete(key); commandsUsed++; trace.push({ type: 'collect', at: [...pos] }); return true; }
+    trace.push({ type: 'collect-empty', at: [...pos] });
+    return false;
+  };
+  const api = {
+    moveRight: () => move('right'), moveLeft: () => move('left'),
+    moveUp: () => move('up'), moveDown: () => move('down'),
+    pathClear, atGoal, hasCoinHere, collectCoin,
+  };
+  const paramNames = availableCommands.filter((n) => n in api);
+  const paramFns = paramNames.map((n) => api[n]);
+  const sandboxed = new Function(...paramNames, '"use strict";\\n' + code + '\\n');
+  sandboxed(...paramFns);
+  return {
+    success: pos[0] === goal[0] && pos[1] === goal[1],
+    finalPosition: pos, commandsUsed,
+    coinsCollected: totalCoins - remainingCoins.size, totalCoins, trace,
+  };
+}
+function translateError(err) {
+  if (err instanceof RunnerError) return err.message;
+  const msg = err && err.message ? err.message : 'Something went wrong running your code.';
+  const notDefined = msg.match(/^(\\w+) is not defined$/);
+  if (notDefined) return '"' + notDefined[1] + '" isn\\'t available on this level yet - check the command list on the left.';
+  if (msg.includes('Unexpected token') || msg.includes('SyntaxError') || err instanceof SyntaxError) return 'There is a syntax error in your code: ' + msg;
+  return msg;
+}
+self.onmessage = (event) => {
+  const { code, grid, availableCommands } = event.data;
+  try { self.postMessage({ ok: true, result: runLevel(code, grid, availableCommands) }); }
+  catch (err) { self.postMessage({ ok: false, error: translateError(err) }); }
+};
+`;
+
+const WORKER_TIMEOUT_MS = 2000;
+function runPlayerCode(code, level) {
+  return new Promise((resolve) => {
+    const blob = new Blob([WORKER_SOURCE], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+    let settled = false;
+    const finish = (payload) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      worker.terminate();
+      resolve(payload);
+    };
+    const timer = setTimeout(() => {
+      finish({ ok: false, error: "Your code took too long to finish - look for a loop that never stops (like while(true))." });
+    }, WORKER_TIMEOUT_MS);
+    worker.onmessage = (e) => finish(e.data);
+    worker.onerror = (e) => finish({ ok: false, error: e.message || 'Your code crashed while running.' });
+    worker.postMessage({ code, grid: level.grid, availableCommands: level.availableCommands });
+  });
+}
+
+// ============================== PHASER MAZE SCENE ==============================
+const COLORS = {
+  floor: 0x18313a, floorAlt: 0x14292f, wall: 0x0a1a1f, grid: 0x2c4a52,
+  bot: 0x4fd1c5, botCore: 0xeaf6f4, goal: 0xc98a4b, coin: 0xf2c14e,
+};
+
+class MazeScene extends Phaser.Scene {
+  constructor() { super('MazeScene'); this.level = null; this.tileSize = 56; this.coinSprites = {}; }
+  init(data) { this.level = data.level; }
+  create() { this.drawBoard(); this.game.events.emit('maze-ready'); }
+  resetBoard(level) { this.level = level; this.drawBoard(); }
+  drawBoard() {
+    this.children.removeAll();
+    const grid = this.level.grid;
+    const rows = grid.length, cols = grid[0].length;
+    const maxWidth = this.scale.width - 32, maxHeight = this.scale.height - 32;
+    this.tileSize = Math.floor(Math.min(maxWidth / cols, maxHeight / rows, 92));
+    this.offsetX = (this.scale.width - cols * this.tileSize) / 2;
+    this.offsetY = (this.scale.height - rows * this.tileSize) / 2;
+    const board = this.add.graphics();
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const isWall = grid[r][c] === '#';
+        const x = this.offsetX + c * this.tileSize, y = this.offsetY + r * this.tileSize;
+        const fill = isWall ? COLORS.wall : ((r + c) % 2 === 0 ? COLORS.floor : COLORS.floorAlt);
+        board.fillStyle(fill, 1);
+        board.fillRoundedRect(x + 2, y + 2, this.tileSize - 4, this.tileSize - 4, 6);
+        if (!isWall) { board.lineStyle(1, COLORS.grid, 0.5); board.strokeRoundedRect(x + 2, y + 2, this.tileSize - 4, this.tileSize - 4, 6); }
+      }
+    }
+    const goalPos = this.findCell('G');
+    if (goalPos) {
+      const { x, y } = this.cellCenter(...goalPos);
+      const ring = this.add.circle(x, y, this.tileSize * 0.32, 0x000000, 0);
+      ring.setStrokeStyle(3, COLORS.goal, 1);
+      this.tweens.add({ targets: ring, scale: { from: 0.85, to: 1.12 }, alpha: { from: 1, to: 0.45 }, duration: 900, yoyo: true, repeat: -1 });
+    }
+    this.coinSprites = {};
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === 'C') {
+        const { x, y } = this.cellCenter(r, c);
+        const coin = this.add.circle(x, y, this.tileSize * 0.16, COLORS.coin, 1);
+        coin.setStrokeStyle(2, 0xffffff, 0.45);
+        this.coinSprites[r + ',' + c] = coin;
+      }
+    }
+    const startPos = this.findCell('S') || [0, 0];
+    const { x: bx, y: by } = this.cellCenter(...startPos);
+    this.bot = this.add.container(bx, by);
+    const body = this.add.circle(0, 0, this.tileSize * 0.3, COLORS.bot, 1);
+    const core = this.add.circle(0, 0, this.tileSize * 0.12, COLORS.botCore, 1);
+    this.bot.add([body, core]);
+  }
+  findCell(letter) {
+    const grid = this.level.grid;
+    for (let r = 0; r < grid.length; r++) for (let c = 0; c < grid[r].length; c++) if (grid[r][c] === letter) return [r, c];
+    return null;
+  }
+  cellCenter(r, c) { return { x: this.offsetX + c * this.tileSize + this.tileSize / 2, y: this.offsetY + r * this.tileSize + this.tileSize / 2 }; }
+  bumpOffset(dir) { const map = { right: [1,0], left: [-1,0], up: [0,-1], down: [0,1] }; const [dx, dy] = map[dir] || [0,0]; return { x: dx * 9, y: dy * 9 }; }
+  async playTrace(trace) { for (const step of trace) { await this.playStep(step); } }
+  playStep(step) {
+    return new Promise((resolve) => {
+      if (step.type === 'move') {
+        const { x, y } = this.cellCenter(...step.at);
+        this.tweens.add({ targets: this.bot, x, y, duration: 200, ease: 'Quad.easeInOut', onComplete: resolve });
+      } else if (step.type === 'bump') {
+        const offset = this.bumpOffset(step.dir);
+        this.tweens.add({ targets: this.bot, x: this.bot.x + offset.x, y: this.bot.y + offset.y, duration: 80, yoyo: true, ease: 'Quad.easeOut', onComplete: resolve });
+      } else if (step.type === 'collect') {
+        const coin = this.coinSprites[step.at[0] + ',' + step.at[1]];
+        if (coin) { this.tweens.add({ targets: coin, scale: 0, alpha: 0, duration: 180, onComplete: () => { coin.destroy(); resolve(); } }); }
+        else resolve();
+      } else { resolve(); }
+    });
+  }
+}
+
+// ============================== CODE EDITOR (vanilla) ==============================
+const KEYWORDS = new Set(['const','let','var','function','return','if','else','for','while','break','continue','true','false','null','undefined','new','of','in']);
+function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function highlightCode(code, knownCommands) {
+  return escapeHtml(code).replace(
+    /(\/\/.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+\.?\d*\b)|(\b[a-zA-Z_$][\w$]*\b)/gm,
+    (match, comment, string, number, word) => {
+      if (comment) return '<span class="tok-comment">' + match + '</span>';
+      if (string) return '<span class="tok-string">' + match + '</span>';
+      if (number) return '<span class="tok-number">' + match + '</span>';
+      if (word) {
+        if (KEYWORDS.has(word)) return '<span class="tok-keyword">' + match + '</span>';
+        if (knownCommands.includes(word)) return '<span class="tok-command">' + match + '</span>';
+      }
+      return match;
+    }
+  );
+}
+
+// ============================== APP STATE + RENDER ==============================
+let progress = loadProgress();
+let currentLevelId = Math.min(progress.unlockedLevel, totalLevels);
+let isRunning = false;
+let status = null;
+let lastStars = null;
+let hintCounts = {};
+
+let game, scene;
+const gameCanvasEl = document.getElementById('gameCanvas');
+const codeInput = document.getElementById('codeInput');
+const highlightLayer = document.getElementById('highlightLayer').querySelector('code');
+const gutter = document.getElementById('gutter');
+
+function currentLevel() { return getLevelById(currentLevelId); }
+function currentCode() { return progress.codeByLevel[currentLevelId] ?? currentLevel().starterCode; }
+
+function initPhaser() {
+  const config = {
+    type: Phaser.AUTO,
+    parent: gameCanvasEl,
+    width: gameCanvasEl.clientWidth || 400,
+    height: gameCanvasEl.clientHeight || 320,
+    backgroundColor: '#0d1b1e',
+    scene: [MazeScene],
+  };
+  game = new Phaser.Game(config);
+  game.scene.start('MazeScene', { level: currentLevel() });
+  game.events.on('maze-ready', () => { scene = game.scene.getScene('MazeScene'); });
+  new ResizeObserver(() => {
+    if (!gameCanvasEl.clientWidth || !gameCanvasEl.clientHeight) return;
+    game.scale.resize(gameCanvasEl.clientWidth, gameCanvasEl.clientHeight);
+    scene && scene.drawBoard();
+  }).observe(gameCanvasEl);
+}
+
+function renderSidebar() {
+  const sidebar = document.getElementById('levelSidebar');
+  const groups = Object.values(CONCEPTS).map((concept) => ({ concept, items: levels.filter((l) => l.concept === concept) }));
+  let html = '<div class="level-sidebar__brand"><span class="level-sidebar__brand-mark"></span><span class="level-sidebar__brand-name">PixelCoder</span></div>';
+  groups.forEach(({ concept, items }) => {
+    html += '<div class="level-group"><h3 class="level-group__title">' + CONCEPT_LABELS[concept] + '</h3><ul class="level-group__list">';
+    items.forEach((lvl) => {
+      const unlocked = lvl.id <= progress.unlockedLevel;
+      const stars = progress.stars[lvl.id] || 0;
+      const active = lvl.id === currentLevelId;
+      const starHtml = unlocked
+        ? '<span class="star-row">' + [1,2,3].map((n) => '<span class="star' + (n <= stars ? ' star--filled' : '') + '">★</span>').join('') + '</span>'
+        : '<span class="level-item__lock">🔒</span>';
+      html += '<li><button type="button" class="level-item' + (active ? ' level-item--active' : '') + (!unlocked ? ' level-item--locked' : '') + '" data-level-id="' + lvl.id + '" ' + (!unlocked ? 'disabled' : '') + '>' +
+        '<span class="level-item__index">' + lvl.id + '</span><span class="level-item__title">' + lvl.title + '</span>' + starHtml + '</button></li>';
+    });
+    html += '</ul></div>';
+  });
+  sidebar.innerHTML = html;
+  sidebar.querySelectorAll('.level-item').forEach((btn) => {
+    btn.addEventListener('click', () => selectLevel(Number(btn.dataset.levelId)));
+  });
+}
+
+function renderEditor() {
+  const level = currentLevel();
+  const code = currentCode();
+  codeInput.value = code;
+  highlightLayer.innerHTML = highlightCode(code, level.availableCommands) + '\n';
+  const lineCount = code.split('\n').length;
+  gutter.innerHTML = Array.from({ length: lineCount }, (_, i) => '<div class="code-editor__line-number">' + (i + 1) + '</div>').join('');
+}
+
+function renderRunPanel() {
+  const level = currentLevel();
+  const hintIndex = hintCounts[currentLevelId] || 0;
+  let html = '<div class="run-panel__intro"><h2>' + level.title + '</h2><p>' + level.intro + '</p></div>';
+  html += '<div class="run-panel__commands"><span class="run-panel__commands-label">Available:</span>' +
+    level.availableCommands.map((c) => '<code class="command-chip">' + c + '()</code>').join('') + '</div>';
+  html += '<div class="run-panel__actions">' +
+    '<button type="button" class="btn btn--primary" id="runBtn" ' + (isRunning ? 'disabled' : '') + '>' + (isRunning ? 'Running…' : '▶ Run Code') + '</button>' +
+    '<button type="button" class="btn btn--ghost" id="resetCodeBtn" ' + (isRunning ? 'disabled' : '') + '>Reset Code</button>' +
+    '<button type="button" class="btn btn--ghost" id="hintBtn" ' + (isRunning ? 'disabled' : '') + '>💡 Hint ' + (hintIndex > 0 ? '(' + hintIndex + '/' + level.hints.length + ')' : '') + '</button>' +
+    '</div>';
+  if (hintIndex > 0) {
+    html += '<div class="hint-box">' + level.hints.slice(0, hintIndex).map((h) => '<p>' + h + '</p>').join('') + '</div>';
+  }
+  if (status) {
+    html += '<div class="status-box status-box--' + status.type + '"><p>' + status.text + '</p>';
+    if (status.type === 'success' && lastStars) {
+      html += '<span class="star-row status-box__stars">' + [1,2,3].map((n) => '<span class="star' + (n <= lastStars ? ' star--filled' : '') + '">★</span>').join('') + '</span>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('runPanel').innerHTML = html;
+  document.getElementById('runBtn').addEventListener('click', handleRun);
+  document.getElementById('resetCodeBtn').addEventListener('click', handleResetCode);
+  document.getElementById('hintBtn').addEventListener('click', handleShowHint);
+}
+
+function renderHeader() {
+  document.getElementById('badgeCount').textContent = progress.badges.length + '/' + BADGES.length + ' badges';
+}
+
+function renderAll() { renderSidebar(); renderEditor(); renderRunPanel(); renderHeader(); }
+
+function selectLevel(id) {
+  if (id > progress.unlockedLevel) return;
+  currentLevelId = id;
+  status = null; lastStars = null;
+  scene && scene.resetBoard(currentLevel());
+  renderAll();
+}
+
+function handleCodeChange(newCode) {
+  progress.codeByLevel[currentLevelId] = newCode;
+  saveProgress(progress);
+  highlightLayer.innerHTML = highlightCode(newCode, currentLevel().availableCommands) + '\n';
+  const lineCount = newCode.split('\n').length;
+  gutter.innerHTML = Array.from({ length: lineCount }, (_, i) => '<div class="code-editor__line-number">' + (i + 1) + '</div>').join('');
+}
+
+function handleResetCode() {
+  handleCodeChange(currentLevel().starterCode);
+  codeInput.value = currentLevel().starterCode;
+  status = null;
+  renderRunPanel();
+}
+
+function handleShowHint() {
+  const level = currentLevel();
+  const current = hintCounts[currentLevelId] || 0;
+  hintCounts[currentLevelId] = Math.min(current + 1, level.hints.length);
+  renderRunPanel();
+}
+
+let toastTimer = null;
+function announceBadge(badge) {
+  const toast = document.getElementById('badgeToast');
+  document.getElementById('badgeToastTitle').textContent = 'Badge earned: ' + badge.label;
+  document.getElementById('badgeToastDesc').textContent = badge.description;
+  toast.style.display = 'flex';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3500);
+}
+
+async function handleRun() {
+  const level = currentLevel();
+  isRunning = true; status = null; lastStars = null;
+  renderRunPanel();
+  scene && scene.resetBoard(level);
+
+  const outcome = await runPlayerCode(codeInput.value, level);
+
+  if (!outcome.ok) {
+    status = { type: 'error', text: outcome.error };
+    isRunning = false;
+    renderRunPanel();
+    return;
+  }
+
+  const result = outcome.result;
+  if (scene) await scene.playTrace(result.trace);
+
+  if (result.success) {
+    const stars = starsForRun(result.commandsUsed, level.parCommands);
+    lastStars = stars;
+    let coinNote = '';
+    if (result.totalCoins > 0) coinNote = ' You collected ' + result.coinsCollected + '/' + result.totalCoins + ' coins.';
+    status = { type: 'success', text: 'Level complete in ' + result.commandsUsed + ' commands (par is ' + level.parCommands + ').' + coinNote };
+
+    const nextUnlocked = Math.max(progress.unlockedLevel, Math.min(level.id + 1, totalLevels));
+    const prevStars = progress.stars[level.id] || 0;
+    progress.stars[level.id] = Math.max(prevStars, stars);
+    progress.unlockedLevel = nextUnlocked;
+
+    Object.values(CONCEPTS).forEach((concept) => {
+      const alreadyEarned = progress.badges.includes(concept);
+      if (!alreadyEarned && conceptComplete(progress, concept)) {
+        progress.badges.push(concept);
+        announceBadge(BADGES.find((b) => b.id === concept));
+      }
+    });
+    saveProgress(progress);
+  } else {
+    status = { type: 'error', text: result.commandsUsed === 0
+      ? "Your code didn't move the bot at all - try calling one of the commands on the left."
+      : "The bot didn't reach the goal. Trace through the grid again and check your directions." };
+  }
+
+  isRunning = false;
+  renderSidebar();
+  renderRunPanel();
+  renderHeader();
+}
+
+document.getElementById('resetProgressBtn').addEventListener('click', () => {
+  if (!confirm('This clears every star, unlocked level, and saved code. Continue?')) return;
+  progress = resetProgressStorage();
+  currentLevelId = 1;
+  status = null; lastStars = null; hintCounts = {};
+  scene && scene.resetBoard(currentLevel());
+  renderAll();
+});
+
+codeInput.addEventListener('input', (e) => handleCodeChange(e.target.value));
+codeInput.addEventListener('scroll', () => {
+  document.getElementById('highlightLayer').scrollTop = codeInput.scrollTop;
+  document.getElementById('highlightLayer').scrollLeft = codeInput.scrollLeft;
+  gutter.scrollTop = codeInput.scrollTop;
+});
+codeInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = codeInput.selectionStart, end = codeInput.selectionEnd;
+    const next = codeInput.value.slice(0, start) + '  ' + codeInput.value.slice(end);
+    codeInput.value = next;
+    codeInput.selectionStart = codeInput.selectionEnd = start + 2;
+    handleCodeChange(next);
+  }
+});
+
+initPhaser();
+renderAll();
+</script>
+</body>
+</html>
